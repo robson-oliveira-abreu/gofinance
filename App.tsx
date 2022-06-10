@@ -9,8 +9,8 @@ import {
   Poppins_700Bold
 } from '@expo-google-fonts/poppins'
 
-import theme from './src/Components/global/styles/theme'
-import { Dashboard } from './src/Components/screens/Dashboard/';
+import theme from './src/global/styles/theme';
+import { Dashboard } from './src/screens/Dashboard';
 
 export default function App() {
   const [fontsLoaded] = useFonts({

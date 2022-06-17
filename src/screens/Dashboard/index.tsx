@@ -51,9 +51,15 @@ export function Dashboard() {
         collection: DataListProps[],
         type: 'positive' | 'negative'
     ) {
+        const collectionFiltered = collection
+        .filter(transaction => transaction.type === type);
+
+        if(collectionFiltered.length === 0){
+            return 'NÃO TEM DATA'
+        }
+        
         const lastTransaction = new Date(
-            Math.max.apply(Math, collection
-                .filter(transaction => transaction.type === type)
+            Math.max.apply(Math, collectionFiltered
                 .map(transaction => new Date(transaction.date).getTime())
             )
         )

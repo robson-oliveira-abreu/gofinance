@@ -2,6 +2,7 @@ import React, {
     createContext,
     ReactNode,
     useContext,
+    useEffect,
     useState
 } from "react";
 
@@ -11,6 +12,7 @@ const { REDIRECT_URI } = process.env;
 import * as AuthSession from 'expo-auth-session';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { isLoading } from "expo-font";
 
 
 interface AuthProviderProps {
@@ -28,6 +30,8 @@ interface AuthContextData {
     user: User;
     signInWithGoogle(): Promise<void>;
     signInWithApple(): Promise<void>;
+    signOut(): Promise<void>;
+    userStorageLoading: boolean;
 }
 
 interface AuthorizarionResponse {
@@ -41,6 +45,9 @@ const AuthContext = createContext({} as AuthContextData);
 
 function AuthProvider({ children }: AuthProviderProps) {
     const [user, setUser] = useState<User>({} as User);
+    const[userStorageLoading, setUserStorageLoading] = useState(true);
+
+    const userStorageKey = '@gofinances:user';
 
     async function signInWithGoogle() {
         try {
@@ -56,12 +63,15 @@ function AuthProvider({ children }: AuthProviderProps) {
                 const response = await fetch(`https://www.googleapis.com/oauth2/v1/userinfo?alt=json&access_token=${params.access_token}`)
                 const userInfo = await response.json();
 
-                setUser({
+                const userLogged = {
                     id: userInfo.id,
                     email: userInfo.email,
                     name: userInfo.given_name,
                     photo: userInfo.picture
-                })
+                }
+
+                setUser(userLogged);
+                await AsyncStorage.setItem(userStorageKey, JSON.stringify(userLogged));
             }
 
         } catch (error: any) {
@@ -79,15 +89,17 @@ function AuthProvider({ children }: AuthProviderProps) {
             });
 
             if (credencial) {
+                const name = credencial.fullName!.givenName!
+                const photo = await `https://ui-avatars.com/api/?name=${name}&length=1`;
                 const userLogged = {
                     id: String(credencial.user),
                     email: credencial.email!,
-                    name: credencial.fullName!.givenName!,
-                    photo: undefined
+                    name,
+                    photo,
                 }
 
                 setUser(userLogged);
-                await AsyncStorage.setItem('@gofinances:user', JSON.stringify(userLogged));
+                await AsyncStorage.setItem(userStorageKey, JSON.stringify(userLogged));
             }
 
 
@@ -96,11 +108,33 @@ function AuthProvider({ children }: AuthProviderProps) {
         }
     }
 
+    async function  signOut() {
+        setUser({} as User);
+        await AsyncStorage.removeItem(userStorageKey);
+    }
+
+    useEffect(() => {
+        async function loadUserStorageData() {
+            const userStoraged = await AsyncStorage.getItem(userStorageKey);
+
+            if (userStoraged) {
+                const userLogged = JSON.parse(userStoraged) as User;
+                setUser(userLogged)
+            }
+
+            setUserStorageLoading(false);
+        }
+
+        loadUserStorageData();
+    }, []);
+
     return (
         <AuthContext.Provider value={{
             user,
             signInWithGoogle,
-            signInWithApple
+            signInWithApple,
+            signOut,
+            userStorageLoading
         }}>
             {children}
         </AuthContext.Provider>
